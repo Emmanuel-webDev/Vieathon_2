@@ -1,0 +1,70 @@
+{
+  "reportId": "5bb04112-41a8-4880-a709-29c9b8fdd69d",
+  "reportHash": "0x7ee543d51d491dbffd7c02e62b7945d5b1023362acf10f163deee492dd747f20",
+  "exportedAt": "2026-11-07T19:58:54.030Z",
+  "report": {
+    "version": 1,
+    "target": {
+      "raw": "0x4200000000000000000000000000000000000006",
+      "kind": "contract",
+      "address": "0x4200000000000000000000000000000000000006"
+    },
+    "scannedAt": "2026-11-07T19:58:54.024Z",
+    "filesAnalyzed": [
+      {
+        "path": "WETH9[0x420000]/WETH9.sol",
+        "bytes": 38516
+      }
+    ],
+    "contractFacts": [
+      {
+        "address": "0x4200000000000000000000000000000000000006",
+        "chainId": 8453,
+        "codeSizeBytes": 2041,
+        "isContract": true,
+        "isProxy": false,
+        "verifiedSource": true,
+        "notes": [],
+        "hasSelfdestructOpcode": false,
+        "sourceProvider": "sourcify",
+        "contractName": "WETH9",
+        "compiler": "0.5.17+commit.d19bba13"
+      }
+    ],
+    "findings": [
+      {
+        "id": "sol-old-compiler@WETH9[0x420000]/WETH9.sol:20",
+        "title": "Solidity < 0.8 (no built-in overflow checks)",
+        "severity": "medium",
+        "category": "Arithmetic",
+        "origin": "static",
+        "file": "WETH9[0x420000]/WETH9.sol",
+        "line": 20,
+        "evidence": "pragma solidity >=0.4.22 <0.6;",
+        "description": "Pre-0.8 Solidity wraps silently on overflow unless SafeMath is used consistently.",
+        "recommendation": "Upgrade to >=0.8.20 or verify SafeMath is applied to every arithmetic operation.",
+        "triage": {
+          "verdict": "dismissed",
+          "reason": "The total supply of ETH is bounded far below 2^256 - 1 wei (total supply is ~1.2e26 wei vs uint256 max of ~1.15e77 wei), making integer overflow in deposit() and transferFrom() mathematically impossible in practice."
+        }
+      }
+    ],
+    "summary": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "ai": {
+      "used": true,
+      "model": "gemini-3.5-flash",
+      "provider": "gemini"
+    },
+    "limitations": [
+      "Report AI stage produced by Google Gemini (provider: gemini, model: gemini-3.5-flash).",
+      "Exploit scenarios are reasoned from the code, not executed.",
+      "NightWatch is automated analysis, not a formal audit. Absence of findings is not a guarantee of safety."
+    ]
+  }
+}

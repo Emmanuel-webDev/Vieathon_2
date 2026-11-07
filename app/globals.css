@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --bg-charcoal: #1c1d1f;
+  --panel-surface: #232426;
+  --panel-elevated: #2a2b2e;
+  --text-cream: #efebe3;
+  --text-muted: #8d8b86;
+  --hairline: rgba(239, 235, 227, 0.18);
+  --hairline-subtle: rgba(239, 235, 227, 0.08);
+  --accent-burnt: #e8741f;
+}
+
+html, body {
+  background-color: #1c1d1f;
+  color: #efebe3;
+}
+
+body {
+  font-family: var(--font-sans), Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #e8741f;
+  color: #1c1d1f;
+}
+
+/* Hairline Grid & Cell System */
+.bento-grid {
+  display: grid;
+  gap: 1px;
+  background-color: rgba(239, 235, 227, 0.18);
+  border: 1px solid rgba(239, 235, 227, 0.18);
+}
+
+.bento-cell {
+  background-color: #232426;
+  position: relative;
+  transition: background-color 200ms ease;
+}
+
+/* Sharp outline buttons */
+.btn-sharp {
+  border-radius: 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-weight: 600;
+  border: 1px solid rgba(239, 235, 227, 0.18);
+  transition: all 180ms ease;
+}
+
+.btn-primary-sharp {
+  background-color: #e8741f;
+  color: #1c1d1f;
+  border-color: #e8741f;
+  font-weight: 700;
+}
+.btn-primary-sharp:hover:not(:disabled) {
+  background-color: #f5832e;
+  border-color: #f5832e;
+}
+
+.btn-outline-sharp {
+  background-color: transparent;
+  color: #efebe3;
+  border-color: rgba(239, 235, 227, 0.22);
+}
+.btn-outline-sharp:hover:not(:disabled) {
+  border-color: #e8741f;
+  color: #e8741f;
+}
+
+/* Inputs with dark fill & hairline */
+.input-sharp {
+  border-radius: 0;
+  background-color: #1c1d1f;
+  border: 1px solid rgba(239, 235, 227, 0.18);
+  color: #efebe3;
+  transition: border-color 180ms ease;
+}
+.input-sharp:focus {
+  outline: none;
+  border-color: #e8741f;
+}
+
+/* Subtle motion only (150-250ms) */
+* {
+  transition-duration: 180ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Terminal & scrollbars */
+.term::-webkit-scrollbar, .scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.term::-webkit-scrollbar-thumb, .scroll::-webkit-scrollbar-thumb {
+  background: rgba(239, 235, 227, 0.2);
+}
+.term::-webkit-scrollbar-track, .scroll::-webkit-scrollbar-track {
+  background: #1c1d1f;
+}

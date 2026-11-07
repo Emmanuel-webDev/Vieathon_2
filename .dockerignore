@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+data
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+.env
+.env.*
+!.env.example
+tsconfig.tsbuildinfo
+scripts/test-*
+scripts/print-report*.ts

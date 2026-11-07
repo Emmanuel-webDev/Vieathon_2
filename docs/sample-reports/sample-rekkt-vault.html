@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NightWatch Security Audit Report — sample:rekkt-vault</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0b0d12; color: #e5e7eb; max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.55; }
+    h1, h2, h3 { color: #f9fafb; margin-top: 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; }
+    .meta-box, .notice-box { background: #131722; border: 1px solid #262c3a; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .notice-box { border-left: 4px solid #f59e0b; background: #191611; }
+    .summary-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+    .sum-card { background: #131722; border: 1px solid #262c3a; border-radius: 6px; padding: 0.6rem 1rem; min-width: 100px; }
+    .finding { background: #131722; border: 1px solid #262c3a; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .finding.dismissed { opacity: 0.65; }
+    .finding-header { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .finding-header h3 { margin: 0; font-size: 1.05rem; }
+    .finding-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.82rem; color: #9ca3af; margin-bottom: 0.6rem; }
+    .sev-pill, .badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .sev-critical { background: #7f1d1d; color: #fecaca; }
+    .sev-high { background: #7c2d12; color: #fed7aa; }
+    .sev-medium { background: #78350f; color: #fde68a; }
+    .sev-low { background: #1e3a8a; color: #bfdbfe; }
+    .sev-info { background: #1f2937; color: #d1d5db; }
+    .verdict-confirmed, .verdict-likely { background: #064e3b; color: #a7f3d0; }
+    .verdict-dismissed { background: #374151; color: #9ca3af; }
+    .verdict-unverified { background: #4b5563; color: #e5e7eb; }
+    pre.evidence { background: #080a0f; border: 1px solid #1f2430; padding: 0.75rem; border-radius: 6px; overflow-x: auto; }
+    .triage-note { background: #0f141e; border-left: 3px solid #3b82f6; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+    .exploit-box { background: #14111b; border-left: 3px solid #a855f7; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+    .rec { color: #d1d5db; margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <h1>NightWatch Security Audit Report</h1>
+  <div class="notice-box">
+    <strong>Methodology Notice:</strong> Exploit scenarios are reasoned from the code, not executed.
+  </div>
+  <div class="meta-box">
+    <div><strong>Target:</strong> <code>sample:rekkt-vault</code> (sample)</div>
+    <div><strong>Report Hash (Keccak256):</strong> <code>0x4c042fb279991e969c2a0e6b9cd79a7873a05394e4b7ce974301641f33e94ce1</code></div>
+    <div><strong>Report ID:</strong> <code>e6ca4f52-1942-4fc5-933a-6b45d9524951</code></div>
+    <div><strong>Scanned At:</strong> <code>2026-11-07T19:57:27.168Z</code></div>
+    <div><strong>AI Provider / Model:</strong> <code>gemini</code> / <code>gemini-3.5-flash</code> (used: <code>true</code>)</div>
+  </div>
+
+  <h2>Severity Summary (Active Findings)</h2>
+  <div class="summary-grid">
+    <div class="sum-card"><strong>Critical:</strong> 2</div>
+    <div class="sum-card"><strong>High:</strong> 2</div>
+    <div class="sum-card"><strong>Medium:</strong> 1</div>
+    <div class="sum-card"><strong>Low:</strong> 0</div>
+    <div class="sum-card"><strong>Info:</strong> 1</div>
+  </div>
+
+  
+
+  <h2>Findings (6 total)</h2>
+  <article class="finding sev-critical ">
+        <div class="finding-header">
+          <span class="sev-pill sev-critical">CRITICAL</span>
+          <h3>Unprotected setOwner() allows arbitrary contract ownership takeover</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-public-selfmint@src/RekktVault.sol:37</code></span>
+          <span>Category: Access control</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:37</code></span>
+        </div>
+        <p>A sensitive state-changing function is externally callable and the signature shows no modifier. It may be protected inside the body — triage will check.</p>
+        <pre class="evidence">function setOwner(address newOwner) external {</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> setOwner is public/external without any access control checks, allowing any user to claim ownership.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Restrict with onlyOwner / role-based access control and emit events for each privileged action.</p>
+      </article>
+<article class="finding sev-critical ">
+        <div class="finding-header">
+          <span class="sev-pill sev-critical">CRITICAL</span>
+          <h3>Reentrancy in withdraw() allows ETH balance drain</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-reentrancy@src/RekktVault.sol:27</code></span>
+          <span>Category: Reentrancy</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:27</code></span>
+        </div>
+        <p>An external call or token transfer happens before a later state write in the same function, with no nonReentrant guard. A malicious receiver or ERC-777/hook token can re-enter and act on stale state.</p>
+        <pre class="evidence">(bool ok, ) = msg.sender.call{value: amount}(&quot;&quot;);</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> withdraw() executes an external call to msg.sender before updating balances[msg.sender], allowing recursive calls to drain contract funds.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Apply checks-effects-interactions (update state before the call) and/or OpenZeppelin ReentrancyGuard.</p>
+      </article>
+<article class="finding sev-high ">
+        <div class="finding-header">
+          <span class="sev-pill sev-high">HIGH</span>
+          <h3>Arbitrary address in transferFrom allows unauthorized deposit execution</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-arbitrary-from-transferfrom@src/RekktVault.sol:33</code></span>
+          <span>Category: Access control</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:33</code></span>
+        </div>
+        <p>If `from` is a function argument, anyone can spend tokens from any address that has approved this contract.</p>
+        <pre class="evidence">usdc.transferFrom(from, address(this), amount);</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> depositUsdcFor allows any caller to transfer USDC from any address &#39;from&#39; that has granted allowance to the contract.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Pull funds only from msg.sender, or verify a signature/allowance relationship for `from`.</p>
+      </article>
+<article class="finding sev-high ">
+        <div class="finding-header">
+          <span class="sev-pill sev-high">HIGH</span>
+          <h3>Authorization relying on tx.origin enables phishing attacks</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-tx-origin-auth@src/RekktVault.sol:42</code></span>
+          <span>Category: Access control</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:42</code></span>
+        </div>
+        <p>tx.origin is the original signer, so any contract the victim interacts with can relay calls that pass this check (phishing-style attack).</p>
+        <pre class="evidence">require(tx.origin == owner, &quot;not owner&quot;);</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> sweep() relies on tx.origin == owner, enabling phishing attacks via malicious intermediary contracts.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Authorize with msg.sender (or a signature check) instead of tx.origin.</p>
+      </article>
+<article class="finding sev-medium ">
+        <div class="finding-header">
+          <span class="sev-pill sev-medium">MEDIUM</span>
+          <h3>Unchecked return value of ERC-20 transferFrom</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-unchecked-erc20-transfer@src/RekktVault.sol:33</code></span>
+          <span>Category: Unchecked return value</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:33</code></span>
+        </div>
+        <p>Some tokens (e.g. USDT-style) return false rather than reverting. Ignoring the result lets accounting drift from reality.</p>
+        <pre class="evidence">usdc.transferFrom(from, address(this), amount);</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> The return value of usdc.transferFrom is not checked or wrapped in SafeERC20, which can lead to silent failure for non-reverting ERC20 tokens.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Use OpenZeppelin SafeERC20 (safeTransfer / safeTransferFrom).</p>
+      </article>
+<article class="finding sev-info ">
+        <div class="finding-header">
+          <span class="sev-pill sev-info">INFO</span>
+          <h3>Floating pragma</h3>
+          <span class="badge verdict-confirmed">CONFIRMED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-floating-pragma@src/RekktVault.sol:2</code></span>
+          <span>Category: Hygiene</span>
+          <span>Origin: static</span>
+          <span>Location: <code>src/RekktVault.sol:2</code></span>
+        </div>
+        <p>Contracts should be deployed with the compiler version they were tested on.</p>
+        <pre class="evidence">pragma solidity ^0.8.20;</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> The contract uses floating pragma ^0.8.20 which allows compilation with unverified future compiler versions.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Pin the pragma (e.g. `pragma solidity 0.8.26;`).</p>
+      </article>
+
+  <h2>Scope &amp; Honest Limitations</h2>
+  <div class="meta-box">
+    <ul><li>Judge Sandbox: this is an intentionally vulnerable sample bundled with NightWatch, analyzed by the same pipeline as any real submission.</li>
+<li>Report AI stage produced by Google Gemini (provider: gemini, model: gemini-3.5-flash).</li>
+<li>Exploit scenarios are reasoned from the code, not executed.</li>
+<li>NightWatch is automated analysis, not a formal audit. Absence of findings is not a guarantee of safety.</li></ul>
+  </div>
+</body>
+</html>

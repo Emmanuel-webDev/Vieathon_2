@@ -1,0 +1,49 @@
+# Fly.io deployment configuration for NightWatch
+# Single-machine long-running Node host with persistent SQLite volume and in-process background worker.
+#
+# Deploy command:
+#   fly launch (or fly deploy) --build-arg NEXT_PUBLIC_EAS_SCHEMA_UID="0x0c57cb369bf451ea40118e367beb29e6f23c8e0913b29058287337a86237e5c3"
+#
+# Create volume (if not created by launch):
+#   fly volumes create nightwatch_data --size 1 --region iad
+
+app = "nightwatch-guard"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+  [build.args]
+    # Inlined into Next.js client bundle during build
+    NEXT_PUBLIC_EAS_SCHEMA_UID = "0x0c57cb369bf451ea40118e367beb29e6f23c8e0913b29058287337a86237e5c3"
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+  NIGHTWATCH_WORKER = "1"
+  NIGHTWATCH_DB_PATH = "/data/nightwatch.db"
+  NODE_OPTIONS = "--dns-result-order=ipv4first"
+
+[mounts]
+  source = "nightwatch_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    grace_period = "25s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/api/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1024mb"
+  cpus = 1

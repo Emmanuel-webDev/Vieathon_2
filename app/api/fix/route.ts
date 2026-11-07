@@ -1,0 +1,118 @@
+import { randomBytes } from "crypto";
+import { getGhSession } from "@/lib/session";
+import { applyUnifiedDiff, patchTargetFiles } from "@/lib/patch";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+const API = "https://api.github.com";
+
+async function gh(token: string, path: string, init: RequestInit = {}) {
+  const res = await fetch(`${API}${path}`, {
+    ...init,
+    headers: {
+      authorization: `Bearer ${token}`,
+      accept: "application/vnd.github+json",
+      "x-github-api-version": "2022-11-28",
+      "content-type": "application/json",
+      ...(init.headers ?? {}),
+    },
+  });
+  const text = await res.text();
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    /* non-json */
+  }
+  return { ok: res.ok, status: res.status, json };
+}
+
+const SAFE_PART = /^[A-Za-z0-9._-]+$/;
+
+export async function POST(req: Request) {
+  const session = await getGhSession().catch(() => null);
+  if (!session) return Response.json({ error: "Sign in with GitHub first." }, { status: 401 });
+
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const { owner, name, ref: refIn } = body.repo ?? {};
+  const f = body.finding ?? {};
+  if (!SAFE_PART.test(owner ?? "") || !SAFE_PART.test(name ?? "")) return Response.json({ error: "Invalid repo" }, { status: 400 });
+  if (typeof f.file !== "string" || typeof f.patch !== "string" || !f.patch.includes("@@")) {
+    return Response.json({ error: "This finding has no applicable patch." }, { status: 400 });
+  }
+  if (f.file.includes("..") || f.file.startsWith("/")) return Response.json({ error: "Invalid file path" }, { status: 400 });
+
+  // The patch may only touch the single file the finding points at.
+  const targets = patchTargetFiles(f.patch);
+  if (targets.length !== 1 || targets[0] !== f.file) {
+    return Response.json({ error: `Patch must modify only ${f.file}; it targets ${targets.join(", ") || "nothing"}.` }, { status: 400 });
+  }
+
+  const repo = await gh(session.token, `/repos/${owner}/${name}`);
+  if (!repo.ok) return Response.json({ error: `Cannot access ${owner}/${name} as ${session.login} (HTTP ${repo.status}).` }, { status: 403 });
+  if (!repo.json.permissions?.push) {
+    return Response.json(
+      { error: `${session.login} does not have push access to ${owner}/${name}. NightWatch only opens PRs on repos you can write to.` },
+      { status: 403 }
+    );
+  }
+  const baseBranch: string = refIn || repo.json.default_branch;
+
+  const file = await gh(session.token, `/repos/${owner}/${name}/contents/${f.file.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(baseBranch)}`);
+  if (!file.ok || file.json?.type !== "file" || !file.json.content) {
+    return Response.json({ error: `Could not read ${f.file} on ${baseBranch}.` }, { status: 404 });
+  }
+  const current = Buffer.from(file.json.content, "base64").toString("utf8");
+  const applied = applyUnifiedDiff(current, f.patch);
+  if (!applied.ok) return Response.json({ error: `Patch does not apply: ${applied.error}` }, { status: 409 });
+  if (applied.content === current) return Response.json({ error: "Patch makes no change." }, { status: 409 });
+
+  const head = await gh(session.token, `/repos/${owner}/${name}/git/ref/heads/${encodeURIComponent(baseBranch).replace(/%2F/g, "/")}`);
+  if (!head.ok) return Response.json({ error: `Could not resolve branch ${baseBranch}.` }, { status: 404 });
+
+  const slug = String(f.title ?? "fix").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 36) || "fix";
+  const branch = `nightwatch/${slug}-${randomBytes(3).toString("hex")}`;
+  const mk = await gh(session.token, `/repos/${owner}/${name}/git/refs`, {
+    method: "POST",
+    body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: head.json.object.sha }),
+  });
+  if (!mk.ok) return Response.json({ error: `Could not create branch (HTTP ${mk.status}).` }, { status: 502 });
+
+  const title = String(f.title ?? "Security fix").slice(0, 120);
+  const put = await gh(session.token, `/repos/${owner}/${name}/contents/${f.file.split("/").map(encodeURIComponent).join("/")}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      message: `fix(security): ${title}\n\nSuggested by NightWatch. Review before merging.`,
+      content: Buffer.from(applied.content!, "utf8").toString("base64"),
+      sha: file.json.sha,
+      branch,
+    }),
+  });
+  if (!put.ok) return Response.json({ error: `Could not commit the fix (HTTP ${put.status}).` }, { status: 502 });
+
+  const prBody = [
+    `## ${title}`,
+    "",
+    `**Severity:** ${f.severity ?? "n/a"} · **Location:** \`${f.file}${f.line ? `:${f.line}` : ""}\``,
+    "",
+    String(f.description ?? "").slice(0, 1500),
+    "",
+    `**Recommendation:** ${String(f.recommendation ?? "").slice(0, 800)}`,
+    "",
+    "> Generated by NightWatch from an automated scan. The patch was verified to apply cleanly to the current file, but it has **not been compiled or tested**. Review it and run your test suite before merging.",
+  ].join("\n");
+  const pr = await gh(session.token, `/repos/${owner}/${name}/pulls`, {
+    method: "POST",
+    body: JSON.stringify({ title: `NightWatch: ${title}`, head: branch, base: baseBranch, body: prBody }),
+  });
+  if (!pr.ok) {
+    return Response.json({ error: `Branch ${branch} was pushed but the PR could not be opened (HTTP ${pr.status}).`, branch }, { status: 502 });
+  }
+  return Response.json({ url: pr.json.html_url, number: pr.json.number, branch });
+}

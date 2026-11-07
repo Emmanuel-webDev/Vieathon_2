@@ -1,0 +1,152 @@
+{
+  "reportId": "58d7f1c4-8cf0-4c24-b275-02bb1c312583",
+  "reportHash": "0x57b78ce4d6f4a4ed7dc82e60703c89bb2d8aad5afd0fd2cc198f3b68e74a0b99",
+  "exportedAt": "2026-11-07T19:58:37.865Z",
+  "report": {
+    "version": 1,
+    "target": {
+      "raw": "0x70139e580853f6c54c976f027da3059f27e554ee",
+      "kind": "contract",
+      "address": "0x70139e580853f6c54c976f027da3059f27e554ee"
+    },
+    "scannedAt": "2026-11-07T19:58:37.857Z",
+    "filesAnalyzed": [
+      {
+        "path": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "bytes": 1308
+      }
+    ],
+    "contractFacts": [
+      {
+        "address": "0x70139e580853f6c54c976F027DA3059f27e554ee",
+        "chainId": 84532,
+        "codeSizeBytes": 2218,
+        "isContract": true,
+        "isProxy": false,
+        "verifiedSource": true,
+        "notes": [],
+        "owner": "0xC0477B7C64fB76C4f5dFc083c9113D59556f5222",
+        "ownerIsContract": false,
+        "hasSelfdestructOpcode": false,
+        "sourceProvider": "etherscan",
+        "contractName": "NightWatchDemoVault",
+        "compiler": "v0.8.20+commit.a1b79de6"
+      }
+    ],
+    "findings": [
+      {
+        "id": "sol-public-selfmint@NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol:32",
+        "title": "Unprotected setOwner() allows arbitrary contract ownership takeover",
+        "severity": "critical",
+        "category": "Access control",
+        "origin": "static",
+        "file": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "line": 32,
+        "evidence": "function setOwner(address newOwner) external {",
+        "description": "A sensitive state-changing function is externally callable and the signature shows no modifier. It may be protected inside the body — triage will check.",
+        "recommendation": "Restrict with onlyOwner / role-based access control and emit events for each privileged action.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "setOwner() is an external function without any authorization checks, allowing any user to take ownership of the contract."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n+++ b/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n@@ -32,2 +32,3 @@\n     function setOwner(address newOwner) external {\n+        require(msg.sender == owner, \"Not owner\");\n         owner = newOwner;\n"
+      },
+      {
+        "id": "sol-tx-origin-auth@NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol:39",
+        "title": "Authorization using tx.origin in emergencySweep allows phishing attacks",
+        "severity": "high",
+        "category": "Access control",
+        "origin": "static",
+        "file": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "line": 39,
+        "evidence": "require(tx.origin == owner, \"Not owner\");",
+        "description": "tx.origin is the original signer, so any contract the victim interacts with can relay calls that pass this check (phishing-style attack).",
+        "recommendation": "Authorize with msg.sender (or a signature check) instead of tx.origin.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "emergencySweep relies on tx.origin == owner for access control, exposing the function to phishing attacks via intermediate contract calls."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n+++ b/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n@@ -39,1 +39,1 @@\n-        require(tx.origin == owner, \"Not owner\");\n+        require(msg.sender == owner, \"Not owner\");\n"
+      },
+      {
+        "id": "sol-reentrancy@NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol:25",
+        "title": "Reentrancy vulnerability in withdrawAll allows draining vault funds",
+        "severity": "high",
+        "category": "Reentrancy",
+        "origin": "static",
+        "file": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "line": 25,
+        "evidence": "(bool ok, ) = msg.sender.call{value: bal}(\"\");",
+        "description": "An external call or token transfer happens before a later state write in the same function, with no nonReentrant guard. A malicious receiver or ERC-777/hook token can re-enter and act on stale state.",
+        "recommendation": "Apply checks-effects-interactions (update state before the call) and/or OpenZeppelin ReentrancyGuard.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "withdrawAll() sends ETH balance via low-level call before updating balances[msg.sender] to 0, allowing reentrant balance withdrawal."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n+++ b/NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol\n@@ -24,4 +24,4 @@\n         require(bal > 0, \"No balance\");\n+        balances[msg.sender] = 0;\n         (bool ok, ) = msg.sender.call{value: bal}(\"\");\n         require(ok, \"Transfer failed\");\n-        balances[msg.sender] = 0;\n"
+      },
+      {
+        "id": "onchain-eoa-owner@84532:0x70139e580853f6c54c976f027da3059f27e554ee",
+        "title": "Privileged owner is a single EOA",
+        "severity": "medium",
+        "category": "Centralization / Access control",
+        "origin": "onchain",
+        "evidence": "owner() = 0xC0477B7C64fB76C4f5dFc083c9113D59556f5222 has no contract code on Base [Base Sepolia 0x70139e580853f6c54c976f027da3059f27e554ee]",
+        "description": "Functions guarded by the owner role are controlled by one private key. If it leaks, an attacker inherits every owner-only power (pausing, minting, fee changes, withdrawals — depending on the contract).",
+        "recommendation": "Transfer ownership to a multisig (Safe) and consider a timelock for sensitive actions."
+      },
+      {
+        "id": "sol-unchecked-erc20-transfer@NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol:40",
+        "title": "ERC-20 transfer/transferFrom return value ignored",
+        "severity": "medium",
+        "category": "Unchecked return value",
+        "origin": "static",
+        "file": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "line": 40,
+        "evidence": "to.transfer(address(this).balance);",
+        "description": "Some tokens (e.g. USDT-style) return false rather than reverting. Ignoring the result lets accounting drift from reality.",
+        "recommendation": "Use OpenZeppelin SafeERC20 (safeTransfer / safeTransferFrom).",
+        "triage": {
+          "verdict": "dismissed",
+          "reason": "Line 40 transfers native ETH using address payable transfer, not an ERC-20 token transfer."
+        }
+      },
+      {
+        "id": "sol-floating-pragma@NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol:2",
+        "title": "Floating pragma",
+        "severity": "info",
+        "category": "Hygiene",
+        "origin": "static",
+        "file": "NightWatchDemoVault[0x70139e]/NightWatchDemoVault.sol",
+        "line": 2,
+        "evidence": "pragma solidity ^0.8.20;",
+        "description": "Contracts should be deployed with the compiler version they were tested on.",
+        "recommendation": "Pin the pragma (e.g. `pragma solidity 0.8.26;`).",
+        "triage": {
+          "verdict": "dismissed",
+          "reason": "Floating pragma ^0.8.20 is present; while locking exact compiler version is recommended, it is an informational best practice rather than an exploitable vulnerability."
+        }
+      }
+    ],
+    "summary": {
+      "critical": 1,
+      "high": 2,
+      "medium": 1,
+      "low": 0,
+      "info": 0
+    },
+    "ai": {
+      "used": true,
+      "model": "gemini-3.5-flash",
+      "provider": "gemini"
+    },
+    "limitations": [
+      "Report AI stage produced by Google Gemini (provider: gemini, model: gemini-3.5-flash).",
+      "Exploit scenarios are reasoned from the code, not executed.",
+      "NightWatch is automated analysis, not a formal audit. Absence of findings is not a guarantee of safety."
+    ]
+  }
+}

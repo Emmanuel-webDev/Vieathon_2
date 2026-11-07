@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NightWatch Security Audit Report — 0x4200000000000000000000000000000000000006</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0b0d12; color: #e5e7eb; max-width: 960px; margin: 0 auto; padding: 2rem 1.25rem; line-height: 1.55; }
+    h1, h2, h3 { color: #f9fafb; margin-top: 0; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em; }
+    .meta-box, .notice-box { background: #131722; border: 1px solid #262c3a; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem; }
+    .notice-box { border-left: 4px solid #f59e0b; background: #191611; }
+    .summary-grid { display: flex; gap: 0.75rem; flex-wrap: wrap; margin: 1rem 0; }
+    .sum-card { background: #131722; border: 1px solid #262c3a; border-radius: 6px; padding: 0.6rem 1rem; min-width: 100px; }
+    .finding { background: #131722; border: 1px solid #262c3a; border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+    .finding.dismissed { opacity: 0.65; }
+    .finding-header { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    .finding-header h3 { margin: 0; font-size: 1.05rem; }
+    .finding-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.82rem; color: #9ca3af; margin-bottom: 0.6rem; }
+    .sev-pill, .badge { padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+    .sev-critical { background: #7f1d1d; color: #fecaca; }
+    .sev-high { background: #7c2d12; color: #fed7aa; }
+    .sev-medium { background: #78350f; color: #fde68a; }
+    .sev-low { background: #1e3a8a; color: #bfdbfe; }
+    .sev-info { background: #1f2937; color: #d1d5db; }
+    .verdict-confirmed, .verdict-likely { background: #064e3b; color: #a7f3d0; }
+    .verdict-dismissed { background: #374151; color: #9ca3af; }
+    .verdict-unverified { background: #4b5563; color: #e5e7eb; }
+    pre.evidence { background: #080a0f; border: 1px solid #1f2430; padding: 0.75rem; border-radius: 6px; overflow-x: auto; }
+    .triage-note { background: #0f141e; border-left: 3px solid #3b82f6; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+    .exploit-box { background: #14111b; border-left: 3px solid #a855f7; padding: 0.5rem 0.75rem; margin: 0.5rem 0; }
+    .rec { color: #d1d5db; margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <h1>NightWatch Security Audit Report</h1>
+  <div class="notice-box">
+    <strong>Methodology Notice:</strong> Exploit scenarios are reasoned from the code, not executed.
+  </div>
+  <div class="meta-box">
+    <div><strong>Target:</strong> <code>0x4200000000000000000000000000000000000006</code> (contract)</div>
+    <div><strong>Report Hash (Keccak256):</strong> <code>0x7ee543d51d491dbffd7c02e62b7945d5b1023362acf10f163deee492dd747f20</code></div>
+    <div><strong>Report ID:</strong> <code>5bb04112-41a8-4880-a709-29c9b8fdd69d</code></div>
+    <div><strong>Scanned At:</strong> <code>2026-11-07T19:58:54.024Z</code></div>
+    <div><strong>AI Provider / Model:</strong> <code>gemini</code> / <code>gemini-3.5-flash</code> (used: <code>true</code>)</div>
+  </div>
+
+  <h2>Severity Summary (Active Findings)</h2>
+  <div class="summary-grid">
+    <div class="sum-card"><strong>Critical:</strong> 0</div>
+    <div class="sum-card"><strong>High:</strong> 0</div>
+    <div class="sum-card"><strong>Medium:</strong> 0</div>
+    <div class="sum-card"><strong>Low:</strong> 0</div>
+    <div class="sum-card"><strong>Info:</strong> 0</div>
+  </div>
+
+  <h2>Onchain Contract Facts</h2><div class="meta-box"><ul><li>
+        <strong>WETH9</strong> (<code>0x4200000000000000000000000000000000000006</code>, Chain ID 8453) —
+        2041 bytes, Verified: <code>true</code> (sourcify),
+        Proxy: <code>false</code>,
+        Owner: <code>none</code>
+      </li></ul></div>
+
+  <h2>Findings (1 total)</h2>
+  <article class="finding sev-medium dismissed">
+        <div class="finding-header">
+          <span class="sev-pill sev-medium">MEDIUM</span>
+          <h3>Solidity &lt; 0.8 (no built-in overflow checks)</h3>
+          <span class="badge verdict-dismissed">DISMISSED</span>
+        </div>
+        <div class="finding-meta">
+          <span>ID: <code>sol-old-compiler@WETH9[0x420000]/WETH9.sol:20</code></span>
+          <span>Category: Arithmetic</span>
+          <span>Origin: static</span>
+          <span>Location: <code>WETH9[0x420000]/WETH9.sol:20</code></span>
+        </div>
+        <p>Pre-0.8 Solidity wraps silently on overflow unless SafeMath is used consistently.</p>
+        <pre class="evidence">pragma solidity &gt;=0.4.22 &lt;0.6;</pre>
+        <p class="triage-note"><strong>AI Triage:</strong> The total supply of ETH is bounded far below 2^256 - 1 wei (total supply is ~1.2e26 wei vs uint256 max of ~1.15e77 wei), making integer overflow in deposit() and transferFrom() mathematically impossible in practice.</p>
+        
+        <p class="rec"><strong>Recommendation:</strong> Upgrade to &gt;=0.8.20 or verify SafeMath is applied to every arithmetic operation.</p>
+      </article>
+
+  <h2>Scope &amp; Honest Limitations</h2>
+  <div class="meta-box">
+    <ul><li>Report AI stage produced by Google Gemini (provider: gemini, model: gemini-3.5-flash).</li>
+<li>Exploit scenarios are reasoned from the code, not executed.</li>
+<li>NightWatch is automated analysis, not a formal audit. Absence of findings is not a guarantee of safety.</li></ul>
+  </div>
+</body>
+</html>

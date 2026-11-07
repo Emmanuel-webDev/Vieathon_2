@@ -1,0 +1,144 @@
+{
+  "reportId": "e6ca4f52-1942-4fc5-933a-6b45d9524951",
+  "reportHash": "0x4c042fb279991e969c2a0e6b9cd79a7873a05394e4b7ce974301641f33e94ce1",
+  "exportedAt": "2026-11-07T19:57:27.178Z",
+  "report": {
+    "version": 1,
+    "target": {
+      "raw": "sample:rekkt-vault",
+      "kind": "sample",
+      "sample": "rekkt-vault"
+    },
+    "scannedAt": "2026-11-07T19:57:27.168Z",
+    "filesAnalyzed": [
+      {
+        "path": "src/RekktVault.sol",
+        "bytes": 1345
+      }
+    ],
+    "findings": [
+      {
+        "id": "sol-public-selfmint@src/RekktVault.sol:37",
+        "title": "Unprotected setOwner() allows arbitrary contract ownership takeover",
+        "severity": "critical",
+        "category": "Access control",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 37,
+        "evidence": "function setOwner(address newOwner) external {",
+        "description": "A sensitive state-changing function is externally callable and the signature shows no modifier. It may be protected inside the body — triage will check.",
+        "recommendation": "Restrict with onlyOwner / role-based access control and emit events for each privileged action.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "setOwner is public/external without any access control checks, allowing any user to claim ownership."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/src/RekktVault.sol\n+++ b/src/RekktVault.sol\n@@ -37,3 +37,4 @@\n     function setOwner(address newOwner) external {\n+        require(msg.sender == owner, \"not owner\");\n         owner = newOwner;\n     }"
+      },
+      {
+        "id": "sol-reentrancy@src/RekktVault.sol:27",
+        "title": "Reentrancy in withdraw() allows ETH balance drain",
+        "severity": "critical",
+        "category": "Reentrancy",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 27,
+        "evidence": "(bool ok, ) = msg.sender.call{value: amount}(\"\");",
+        "description": "An external call or token transfer happens before a later state write in the same function, with no nonReentrant guard. A malicious receiver or ERC-777/hook token can re-enter and act on stale state.",
+        "recommendation": "Apply checks-effects-interactions (update state before the call) and/or OpenZeppelin ReentrancyGuard.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "withdraw() executes an external call to msg.sender before updating balances[msg.sender], allowing recursive calls to drain contract funds."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/src/RekktVault.sol\n+++ b/src/RekktVault.sol\n@@ -26,4 +26,4 @@\n         require(balances[msg.sender] >= amount, \"insufficient\");\n+        balances[msg.sender] -= amount;\n         (bool ok, ) = msg.sender.call{value: amount}(\"\");\n         require(ok, \"send failed\");\n-        balances[msg.sender] -= amount;\n     }"
+      },
+      {
+        "id": "sol-arbitrary-from-transferfrom@src/RekktVault.sol:33",
+        "title": "Arbitrary address in transferFrom allows unauthorized deposit execution",
+        "severity": "high",
+        "category": "Access control",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 33,
+        "evidence": "usdc.transferFrom(from, address(this), amount);",
+        "description": "If `from` is a function argument, anyone can spend tokens from any address that has approved this contract.",
+        "recommendation": "Pull funds only from msg.sender, or verify a signature/allowance relationship for `from`.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "depositUsdcFor allows any caller to transfer USDC from any address 'from' that has granted allowance to the contract."
+        }
+      },
+      {
+        "id": "sol-tx-origin-auth@src/RekktVault.sol:42",
+        "title": "Authorization relying on tx.origin enables phishing attacks",
+        "severity": "high",
+        "category": "Access control",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 42,
+        "evidence": "require(tx.origin == owner, \"not owner\");",
+        "description": "tx.origin is the original signer, so any contract the victim interacts with can relay calls that pass this check (phishing-style attack).",
+        "recommendation": "Authorize with msg.sender (or a signature check) instead of tx.origin.",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "sweep() relies on tx.origin == owner, enabling phishing attacks via malicious intermediary contracts."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/src/RekktVault.sol\n+++ b/src/RekktVault.sol\n@@ -42,1 +42,1 @@\n-        require(tx.origin == owner, \"not owner\");\n+        require(msg.sender == owner, \"not owner\");"
+      },
+      {
+        "id": "sol-unchecked-erc20-transfer@src/RekktVault.sol:33",
+        "title": "Unchecked return value of ERC-20 transferFrom",
+        "severity": "medium",
+        "category": "Unchecked return value",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 33,
+        "evidence": "usdc.transferFrom(from, address(this), amount);",
+        "description": "Some tokens (e.g. USDT-style) return false rather than reverting. Ignoring the result lets accounting drift from reality.",
+        "recommendation": "Use OpenZeppelin SafeERC20 (safeTransfer / safeTransferFrom).",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "The return value of usdc.transferFrom is not checked or wrapped in SafeERC20, which can lead to silent failure for non-reverting ERC20 tokens."
+        },
+        "corroboratedBy": [],
+        "patch": "--- a/src/RekktVault.sol\n+++ b/src/RekktVault.sol\n@@ -33,1 +33,1 @@\n-        usdc.transferFrom(from, address(this), amount);\n+        require(usdc.transferFrom(from, address(this), amount), \"transfer failed\");"
+      },
+      {
+        "id": "sol-floating-pragma@src/RekktVault.sol:2",
+        "title": "Floating pragma",
+        "severity": "info",
+        "category": "Hygiene",
+        "origin": "static",
+        "file": "src/RekktVault.sol",
+        "line": 2,
+        "evidence": "pragma solidity ^0.8.20;",
+        "description": "Contracts should be deployed with the compiler version they were tested on.",
+        "recommendation": "Pin the pragma (e.g. `pragma solidity 0.8.26;`).",
+        "triage": {
+          "verdict": "confirmed",
+          "reason": "The contract uses floating pragma ^0.8.20 which allows compilation with unverified future compiler versions."
+        }
+      }
+    ],
+    "summary": {
+      "critical": 2,
+      "high": 2,
+      "medium": 1,
+      "low": 0,
+      "info": 1
+    },
+    "ai": {
+      "used": true,
+      "model": "gemini-3.5-flash",
+      "provider": "gemini"
+    },
+    "limitations": [
+      "Judge Sandbox: this is an intentionally vulnerable sample bundled with NightWatch, analyzed by the same pipeline as any real submission.",
+      "Report AI stage produced by Google Gemini (provider: gemini, model: gemini-3.5-flash).",
+      "Exploit scenarios are reasoned from the code, not executed.",
+      "NightWatch is automated analysis, not a formal audit. Absence of findings is not a guarantee of safety."
+    ]
+  }
+}
