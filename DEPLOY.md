@@ -159,6 +159,13 @@ Render automatically injects the `PORT` variable (default 10000). The Dockerfile
 | `NIGHTWATCH_TREASURY` | `0x29fF710a3244f09d25A64889e2a3C0984B01eD55` |
 | `SESSION_SECRET` | 32+ character random hex string |
 | `CRON_SECRET` | Random hex string |
+| `NIGHTWATCH_PUBLIC_URL` | Optional public domain override (e.g. `https://night-watch-3f97.onrender.com`) to ensure GitHub OAuth callbacks and redirects always use the public HTTPS URL instead of internal bind addresses (`0.0.0.0:10000`). |
+
+> **Reverse Proxy & Public Origin:** NightWatch resolves the canonical public origin in this order:
+> 1. `NIGHTWATCH_PUBLIC_URL` env var if set (trailing slash stripped)
+> 2. `x-forwarded-proto` + `x-forwarded-host` headers (first comma-separated value)
+> 3. `Host` header (with `https` unless localhost/127.0.0.1)
+> 4. Request URL (never returns `0.0.0.0` or internal container ports)
 
 > **Note on Persistent Volumes:** Render Free does not offer mounted persistent disks. NightWatch automatically falls back to container `/app/data/nightwatch.db` or `/tmp/nightwatch.db`, which persists across requests during the container's lifecycle.
 
