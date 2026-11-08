@@ -11,6 +11,16 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
+function sanitizeErrorMessage(msg: string): string {
+  return String(msg || "")
+    .replace(/AIza[0-9A-Za-z_-]{20,}/g, "[REDACTED_API_KEY]")
+    .replace(/\bAQ\.[0-9A-Za-z_-]{20,}/g, "[REDACTED_API_KEY]")
+    .replace(/sk-[A-Za-z0-9_-]{20,}/g, "[REDACTED_API_KEY]")
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}/g, "[REDACTED_GITHUB_TOKEN]")
+    .replace(/Bearer\s+[A-Za-z0-9_.-]+/gi, "Bearer [REDACTED_TOKEN]")
+    .replace(/0x[a-fA-F0-9]{64}/g, "[REDACTED_PRIVATE_KEY]");
+}
+
 export async function POST(req: Request) {
   const ip = clientIp(req);
   let body: { target?: string; orderId?: string; guard?: { hours?: number; intervalMin?: number } };
@@ -62,7 +72,7 @@ export async function POST(req: Request) {
           open = false;
         }
       };
-      const log = (message: string, level: "info" | "warn" = "info") => emit({ type: "log", level, message, t: 0 });
+      const log = (message: string, level: "info" | "warn" | "error" | "ok" = "info") => emit({ type: "log", level, message, t: 0 });
 
       let lastPos = 0;
       const ticket = auditQueue().enqueue(paid, (pos) => {
@@ -108,10 +118,14 @@ export async function POST(req: Request) {
           }
         }
       } catch (e: any) {
-        emit({ type: "error", message: e?.message ?? "Audit failed", t: 0 });
+        const rawMsg = e?.message || "Audit failed";
+        const sanitized = sanitizeErrorMessage(rawMsg);
+        console.error(`[NightWatch:Audit Error] ${sanitized}`, e?.stack ? `\n${e.stack}` : "");
+        emit({ type: "error", message: sanitized, t: 0 });
+        log(`Audit error: ${sanitized}`, "error");
         if (paid && orderId && !produced) {
           refundOrder(orderId);
-          log("The scan failed before producing a report. Your payment credit was returned.");
+          log("The scan failed before producing a report. Your payment credit was returned.", "warn");
         }
       } finally {
         release?.();

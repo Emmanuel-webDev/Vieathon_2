@@ -76,7 +76,13 @@ export async function inspectAddress(
   const findings: Finding[] = [];
   const notes: string[] = [];
 
-  const code = await client.getCode({ address: addr });
+  let code: `0x${string}` | undefined;
+  try {
+    code = await client.getCode({ address: addr });
+  } catch (e: any) {
+    const msg = e?.shortMessage || e?.message || "RPC connection failed";
+    throw new Error(`Base RPC failed to read code for ${addr} on ${CHAINS[chainId].name}: ${msg}`);
+  }
   const hasCode = !!code && code !== "0x";
   const facts: ContractFacts = {
     address: addr,
@@ -219,7 +225,13 @@ export interface AddressSnapshot {
 export async function snapshotAddress(address: `0x${string}`, chainId: ChainId = 8453): Promise<AddressSnapshot> {
   const client = baseClient(chainId);
   const addr = getAddress(address);
-  const code = await client.getCode({ address: addr });
+  let code: `0x${string}` | undefined;
+  try {
+    code = await client.getCode({ address: addr });
+  } catch (e: any) {
+    const msg = e?.shortMessage || e?.message || "RPC connection failed";
+    throw new Error(`Base RPC failed to read code for ${addr} on ${CHAINS[chainId].name}: ${msg}`);
+  }
   if (!code || code === "0x") return { address: addr, isContract: false };
   const [implRaw, adminRaw] = await Promise.all([
     client.getStorageAt({ address: addr, slot: IMPL_SLOT }).catch(() => undefined),

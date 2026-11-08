@@ -16,7 +16,21 @@ const UA = { accept: "application/json" };
 async function getJson(url: string, headers: Record<string, string> = {}) {
   const res = await safeFetchText(url, { headers: { ...UA, ...headers }, maxBytes: 8_000_000 });
   if (res.status === 404) return { status: 404, json: null as any };
-  if (res.status >= 400) throw new Error(`HTTP ${res.status} from ${new URL(url).hostname}`);
+  if (res.status === 403) {
+    const isRateLimit = res.headers.get("x-ratelimit-remaining") === "0" || /rate limit/i.test(res.text);
+    if (isRateLimit) {
+      throw new Error("GitHub API rate limit exceeded (60 requests/hr). Set GITHUB_TOKEN on the server or connect GitHub in the UI.");
+    }
+    throw new Error(`GitHub access forbidden (HTTP 403) for ${new URL(url).pathname}. The repository may be private or requires authorization.`);
+  }
+  if (res.status >= 400) {
+    let msg = `HTTP ${res.status} from ${new URL(url).hostname}`;
+    try {
+      const j = JSON.parse(res.text);
+      if (j.message) msg = `${msg}: ${j.message}`;
+    } catch {}
+    throw new Error(msg);
+  }
   try {
     return { status: res.status, json: JSON.parse(res.text) };
   } catch {

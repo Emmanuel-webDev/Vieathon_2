@@ -99,6 +99,8 @@ export function Scanner() {
     reset();
     setRunning(true);
     abortRef.current = new AbortController();
+    let receivedReport = false;
+    let streamError: string | null = null;
     try {
       const res = await fetch("/api/audit", {
         method: "POST",
@@ -113,14 +115,28 @@ export function Scanner() {
       });
 
       if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j.error || `HTTP ${res.status}`);
+        const text = await res.text().catch(() => "");
+        let errMsg = `Server returned HTTP ${res.status}`;
+        try {
+          const j = JSON.parse(text);
+          if (j.error) errMsg = j.error;
+          else if (j.message) errMsg = j.message;
+        } catch {
+          if (text) errMsg = text.slice(0, 300);
+        }
+        throw new Error(errMsg);
       }
 
       const reader = res.body?.getReader();
       if (!reader) throw new Error("No response stream");
       const dec = new TextDecoder();
       let buf = "";
+
+      const processEvent = (ev: AuditEvent) => {
+        if (ev.type === "report") receivedReport = true;
+        if (ev.type === "error") streamError = ev.message;
+        handle(ev);
+      };
 
       while (true) {
         const { value, done } = await reader.read();
@@ -134,7 +150,7 @@ export function Scanner() {
           const jsonStr = trimmed.startsWith("data:") ? trimmed.replace(/^data:\s*/, "") : trimmed;
           try {
             const ev = JSON.parse(jsonStr) as AuditEvent;
-            handle(ev);
+            processEvent(ev);
           } catch {}
         }
       }
@@ -143,11 +159,25 @@ export function Scanner() {
         const jsonStr = trimmed.startsWith("data:") ? trimmed.replace(/^data:\s*/, "") : trimmed;
         try {
           const ev = JSON.parse(jsonStr) as AuditEvent;
-          handle(ev);
+          processEvent(ev);
         } catch {}
       }
+
+      if (!receivedReport) {
+        const finalError = streamError || "Audit stream ended prematurely without producing a final report.";
+        setError(finalError);
+        setLogs((l) => [...l, { level: "error", message: `✗ ${finalError}`, t: Date.now() }]);
+      }
     } catch (e: any) {
-      if (e.name !== "AbortError") setError(e.message);
+      if (e.name === "AbortError") {
+        const abortMsg = typeof abortRef.current?.signal.reason === "string" ? abortRef.current.signal.reason : "Scan cancelled";
+        setError(abortMsg);
+        setLogs((l) => [...l, { level: "warn", message: `Scan stopped: ${abortMsg}`, t: Date.now() }]);
+      } else {
+        const errMsg = e?.message || "Failed to complete security audit";
+        setError(errMsg);
+        setLogs((l) => [...l, { level: "error", message: `✗ ${errMsg}`, t: Date.now() }]);
+      }
     } finally {
       setRunning(false);
       refreshPayCfg();
@@ -440,14 +470,15 @@ export function Scanner() {
           {pay.status}
         </div>
       )}
-      {error && !running && logs.length === 0 && (
-        <div className="mb-6 border border-red-500/40 bg-red-950/20 p-4 text-xs font-mono text-[#ef4444]" role="alert">
-          {error}
+      {error && !running && (
+        <div className="mb-6 border border-red-500/50 bg-red-950/30 p-4 text-xs font-mono text-[#ef4444]" role="alert">
+          <div className="font-semibold mb-1 uppercase tracking-wider text-red-400">✗ Scan Failed</div>
+          <div className="leading-relaxed">{error}</div>
         </div>
       )}
 
       {/* Terminal Progress Log */}
-      {(running || logs.length > 0) && (
+      {(running || logs.length > 0 || error) && (
         <section aria-label="Scan progress" className="mb-10 border border-[rgba(239,235,227,0.18)] bg-[#1c1d1f]">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-[rgba(239,235,227,0.18)] bg-[#232426] px-4 py-2.5 text-xs uppercase tracking-wider font-mono">
             {STAGES.map((s) => {
