@@ -20,7 +20,8 @@ function parseHunks(patch: string): { files: string[]; hunks: Hunk[] } {
   const files: string[] = [];
   const hunks: Hunk[] = [];
   let cur: Hunk | null = null;
-  for (const raw of patch.replace(/\r\n/g, "\n").split("\n")) {
+  const rawLines = patch.trimEnd().replace(/\r\n/g, "\n").split("\n");
+  for (const raw of rawLines) {
     if (raw.startsWith("--- ") || raw.startsWith("+++ ")) {
       files.push(raw.slice(4).trim().replace(/^[ab]\//, "").split("\t")[0]);
       cur = null;
@@ -74,6 +75,19 @@ export function applyUnifiedDiff(original: string, patch: string): PatchResult {
       if (match) candidates.push(i);
     }
     if (!candidates.length) {
+      // Relaxed match: allow leading indentation variance (e.g. 2 vs 4 spaces or tabs)
+      for (let i = 0; i + oldSide.length <= src.length; i++) {
+        let match = true;
+        for (let j = 0; j < oldSide.length; j++) {
+          if (src[i + j].trim() !== oldSide[j].trim()) {
+            match = false;
+            break;
+          }
+        }
+        if (match) candidates.push(i);
+      }
+    }
+    if (!candidates.length) {
       return { ok: false, error: `Hunk ${idx + 1} does not match the current file contents (the code may have changed since the scan).` };
     }
     candidates.sort((a, b) => Math.abs(a - expected) - Math.abs(b - expected));
@@ -81,7 +95,19 @@ export function applyUnifiedDiff(original: string, patch: string): PatchResult {
       return { ok: false, error: `Hunk ${idx + 1} matches multiple places equally well; refusing to guess.` };
     }
     const at = candidates[0];
-    src.splice(at, oldSide.length, ...newSide);
+    const srcIndent = src[at].match(/^\s*/)?.[0] || "";
+    const patchIndent = oldSide[0]?.match(/^\s*/)?.[0] || "";
+    let adjustedNewSide = newSide;
+    if (srcIndent !== patchIndent && patchIndent.length > 0) {
+      adjustedNewSide = newSide.map((line) => {
+        if (!line.trim()) return line;
+        if (line.startsWith(patchIndent)) {
+          return srcIndent + line.slice(patchIndent.length);
+        }
+        return line;
+      });
+    }
+    src.splice(at, oldSide.length, ...adjustedNewSide);
     offset += newSide.length - oldSide.length;
   }
   let out = src.join("\n");
