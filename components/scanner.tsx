@@ -126,16 +126,25 @@ export function Scanner() {
         const { value, done } = await reader.read();
         if (done) break;
         buf += dec.decode(value, { stream: true });
-        const lines = buf.split("\n\n");
+        const lines = buf.split("\n");
         buf = lines.pop() ?? "";
-        for (const block of lines) {
-          const m = block.match(/^data:\s*(.*)$/m);
-          if (!m) continue;
+        for (const rawLine of lines) {
+          const trimmed = rawLine.trim();
+          if (!trimmed) continue;
+          const jsonStr = trimmed.startsWith("data:") ? trimmed.replace(/^data:\s*/, "") : trimmed;
           try {
-            const ev = JSON.parse(m[1]) as AuditEvent;
+            const ev = JSON.parse(jsonStr) as AuditEvent;
             handle(ev);
           } catch {}
         }
+      }
+      if (buf.trim()) {
+        const trimmed = buf.trim();
+        const jsonStr = trimmed.startsWith("data:") ? trimmed.replace(/^data:\s*/, "") : trimmed;
+        try {
+          const ev = JSON.parse(jsonStr) as AuditEvent;
+          handle(ev);
+        } catch {}
       }
     } catch (e: any) {
       if (e.name !== "AbortError") setError(e.message);
@@ -149,7 +158,11 @@ export function Scanner() {
     if (e.type === "log") setLogs((l) => [...l, { level: e.level, message: e.message, t: e.t }]);
     else if (e.type === "stage") setStages((s) => ({ ...s, [e.stage]: e.status }));
     else if (e.type === "finding") setLogs((l) => [...l, { level: "find", message: `[${e.finding.severity.toUpperCase()}] ${e.finding.title}`, t: e.t }]);
-    else if (e.type === "report") setReport({ report: e.report, hash: e.reportHash, id: e.reportId });
+    else if (e.type === "report") {
+      const hash = ((e as any).reportHash ?? (e as any).hash) as `0x${string}`;
+      const id = ((e as any).reportId ?? (e as any).id) as string;
+      setReport({ report: e.report, hash, id });
+    }
     else if (e.type === "guard") {
       setGuardInfo({ watchId: e.watchId, key: e.key, expiresAt: e.expiresAt });
       try {
